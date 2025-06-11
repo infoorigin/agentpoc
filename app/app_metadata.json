@@ -1,0 +1,15 @@
+{
+  "title": "InfoOrigin: Semantic Translator API Documentation",
+  "description": "This application translates semantic queries to downstream SQL commands based on provided configurations. It includes standard logging for traceability and debugging, along with timeseries metrics for monitoring system performance and usage. Built for scalability and reliability.",
+  "version": "1.0.0",
+  "root_path": "/agents/apps",
+  "docs_url": "/api",
+  "redoc_url": null,
+  "contact": {
+    "name": "Info Origin",
+    "url": "https://infoorigin.com/",
+    "email": "support@infoorigin.com"
+  },
+  "allowed_origins": ["*"]
+
+}

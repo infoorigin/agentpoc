@@ -1,0 +1,14 @@
+{
+  "agent": {
+    "en": {
+      "system_prompt": "You are {role}. {background}{goal_block}",
+      "goal_block": "\\nYour personal goal is: {goal}",
+      "description": "A persona agent acting as a {role}."
+    },
+    "fr": {
+      "system_prompt": "Vous êtes {role}. {background}{goal_block}",
+      "goal_block": "\\nVotre objectif personnel est : {goal}",
+      "description": "Un agent persona agissant en tant que {role}."
+    }
+  }
+}
