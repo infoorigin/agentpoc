@@ -1,0 +1,77 @@
+# Do not change version. This is the version of aws buildspec, not the version of your buldspec file.
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.x
+    commands:
+      - echo Installing app dependencies...
+      - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl   
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+      - source ~/.bashrc
+      - echo 'Check kubectl version'
+      - kubectl version --client
+      - echo Starting sample app build process
+  pre_build:
+    commands:
+      - echo "Configuring Git user..."
+      - git config --global user.email "$codecommit_email" 
+      - git config --global user.name "$codecommit_username"
+      - git config --global credential.helper '!aws codecommit credential-helper $@'
+      - git config --global credential.UseHttpPath true
+      - echo "Logging into Amazon EKS..."
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $AWS_CLUSTER_NAME
+      - echo "Check config"
+      - kubectl config view --minify
+      - echo "Check kubectl access"
+      - kubectl get svc
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$SERVICE_NAME
+      - echo $REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+  build:
+    commands:
+      - git clone "$info_ai_manifest_link"  
+      - cd "$info_ai_manifest_repo"  
+      - cd "$deployment_dir" 
+      - echo "directory containing manifest file:\ $deployment_dir"                               # directory containing deployment.yml
+      - git checkout "$info_ai_manifest_branch"
+      - VERSION=$(grep "$REPOSITORY_URI" deployment.yaml)
+      - echo "version=${VERSION}"
+      - CURRENT_VERSION=${VERSION##*:}
+      - echo "current_version:${CURRENT_VERSION}"
+      - IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+      - echo "patch:$patch"
+      - patch=$((patch + 1))
+      - echo "patch:$patch"
+      - NEW_VERSION=$major.$minor.$patch
+      - echo "New Version:$NEW_VERSION"
+     
+  post_build:
+    commands:
+      # cloning and moving to source code  repository
+      - git clone "$source_code_repo_link" -b "$source_code_branch"               # code commit source code link and branch
+      - cd "$source_code_repo"                                                    # repository name containing source code
+      - echo "repo:\ $source_code_repo"                                           
+      - git checkout "$source_code_branch"                                        # code commit repository branch
+      - echo "source code branch:\ $source_code_branch"                           
+      - echo "Building the Docker image."
+      - docker build -t $REPOSITORY_URI:latest -f Dockerfile .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$NEW_VERSION
+      - git clone "$info_ai_manifest_link"   
+      - cd "$info_ai_manifest_repo"  
+      - cd "$deployment_dir"                                                      # directory containing deployment.yml
+      - git checkout "$info_ai_manifest_branch"
+      #updating new image version in deployment.yml  
+      - sed -i "s|image:\ $REPOSITORY_URI:.*|image:\ $REPOSITORY_URI:$NEW_VERSION|" deployment.yaml
+      - git add deployment.yaml
+      - git commit -m "updating image version in deployment.yaml"
+      - git push  origin "$info_ai_manifest_branch"
+      - echo "Push the latest image to cluster"
+      - docker push $REPOSITORY_URI:$NEW_VERSION
+      - echo "process ended successfully....."
+      
