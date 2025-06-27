@@ -12,7 +12,7 @@ JOIN (
       (
         SELECT model_run_id 
         FROM (
-            SELECT DISTINCT model_run_id 
+            SELECT DISTINCT model_run_id  
             FROM dep_data 
             ORDER BY model_run_id DESC 
             LIMIT 1 OFFSET 1
